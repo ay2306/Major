@@ -5,6 +5,32 @@ import matplotlib.pyplot as plt
 import imagehash
 from PIL import Image, ImageFilter,UnidentifiedImageError
 import random
+import art
+
+print(art.text2art("dHash"))
+
+
+class Loader:
+    def __init__(self,name,total):
+        self.latest = -1
+        self.loaderLength = 0
+        self.name = name
+        self.total = int(total)
+
+    def calculate(self,current):
+        return current/self.total*100
+    
+    def printLoader(self,current):
+        # print(current,self.calculate(current),self.total)
+        current = self.calculate(current)
+        if int(current) > self.latest:
+            self.latest = int(current)
+            toPrint = f"\r{'#'*self.latest}{'.'*(100-self.latest)}   {self.latest}% {self.name} completed"
+            print(toPrint, end="")
+            self.loaderLength = len(toPrint)
+    
+    def removeLoader(self):
+        print("")
 
 def hammingDistance(n1, n2) :
     x = n1 ^ n2 
@@ -59,7 +85,12 @@ def dhash2(image):
 IMAGES = "img"
 files = [x for x in listdir(IMAGES) if isfile(join(IMAGES,x))]
 data = []
+
+imageLoadingLoader = Loader("Image Loading",len(files))
+index = 0
 for file in files:
+    index += 1
+    imageLoadingLoader.printLoader(index)
     try:
         path = join(getcwd(),IMAGES,file)
         image = Image.open(path)
@@ -69,9 +100,14 @@ for file in files:
         })
     except UnidentifiedImageError:
         pass
+imageLoadingLoader.removeLoader()
+
 result = {}
-for i in range(len(data)):
-    for j in range(i+1,len(data)):
+row = len(data)
+imageProcessingLoader = Loader("Image Processing",row*(row-1))
+for i in range(row):
+    for j in range(i+1,row):
+        imageProcessingLoader.printLoader(i*row+j+1)
         lev = diff(data[i]["path"],data[j]["path"])
         match = calculateMatch(data[i]["hash"],data[j]["hash"])
         if lev not in result:
@@ -79,6 +115,8 @@ for i in range(len(data)):
         if match not in result[lev]:
             result[lev][match] = 0
         result[lev][match] += 1
+
+imageProcessingLoader.removeLoader()
 
 for lev in sorted(result):
     print(lev)
