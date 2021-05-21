@@ -6,6 +6,8 @@ import imagehash
 from PIL import Image, ImageFilter,UnidentifiedImageError
 import random
 import art
+import json
+output_stream = open("./graphs/src/data/aHash.json","w")
 
 print(art.text2art("aHash"))
 
@@ -63,7 +65,6 @@ def ahash(image):
         (hash_size + 1, hash_size),
         Image.ANTIALIAS,
     )
-    pixels = list(image.getdata())
     average = 0
     for row in range(hash_size):
         for col in range(hash_size):
@@ -106,6 +107,7 @@ for file in files:
         pass
 imageLoadingLoader.removeLoader()
 
+all_match = {}
 result = {}
 row = len(data)
 imageProcessingLoader = Loader("Image Processing",row*(row-1))
@@ -119,10 +121,23 @@ for i in range(row):
         if match not in result[lev]:
             result[lev][match] = 0
         result[lev][match] += 1
+        if match not in all_match:
+            all_match[match] = 1
 
 imageProcessingLoader.removeLoader()
 
-for lev in sorted(result):
-    print(lev)
-    for match in sorted(result[lev]):
-        print(f"\t{match} : {result[lev][match]}")
+for lev in result:
+    for match in all_match:
+        if match not in result[lev]:
+            result[lev][match] = 0
+
+
+for lev in result:
+    # print(lev)
+    data = []
+    for match in result[lev]:
+        data.append((match,result[lev][match]))
+    result[lev] = sorted(data)
+
+output_stream.write(json.dumps(result))
+

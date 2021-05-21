@@ -7,11 +7,11 @@ from PIL import Image, ImageFilter,UnidentifiedImageError
 import random
 import art
 import json
+import numpy
+import scipy.fftpack
+output_stream = open("./graphs/src/data/pHash.json","w")
 
-output_stream = open("./graphs/src/data/dHash.json","w")
-
-print(art.text2art("dHash"))
-
+print(art.text2art("aHash"))
 
 class Loader:
     def __init__(self,name,total):
@@ -34,6 +34,7 @@ class Loader:
     
     def removeLoader(self):
         print("")
+    
 
 def hammingDistance(n1, n2) :
     x = n1 ^ n2 
@@ -59,20 +60,31 @@ def calculateMatch(a,b):
     return round((BITS-hammingDistance(a,b))/BITS*100,2)
 
 
-def dhash2(image):
+def phash(image):
     hash_size = 8
+    freq = 4
+    img_size = hash_size*freq
     # Grayscale and shrink the image in one step.
     image = image.convert('L').resize(
-        (hash_size + 1, hash_size),
+        (img_size, img_size),
         Image.ANTIALIAS,
     )
-    # Compare adjacent pixels.
+    pixels = []
+    for row in range(img_size):
+        cur_row = []
+        for col in range(img_size):
+            cur_row.append(image.getpixel((col,row)))
+        pixels.append(cur_row)
+    # print(pixels)
+    dct = scipy.fftpack.dct(scipy.fftpack.dct(pixels, axis = 0), axis = 1)
+    # print(dct)
+    dct = dct[:hash_size,:hash_size]
+    median = numpy.median(dct)
     difference = []
     for row in range(hash_size):
         for col in range(hash_size):
-            pixel_left = image.getpixel((col, row))
-            pixel_right = image.getpixel((col + 1, row))
-            difference.append(pixel_left > pixel_right)
+            current_pixel = dct[row][col]
+            difference.append(current_pixel >= median)
     # Convert the binary array to a hexadecimal string.
     decimal_value = 0
     hex_string = []
@@ -98,21 +110,26 @@ for file in files:
         image = Image.open(path)
         data.append({
             "path" : file,
-            "hash" : int(dhash2(image),16)
+            "hash" : int(phash(image),16)
         })
+        # exit(0)
     except UnidentifiedImageError:
         pass
 imageLoadingLoader.removeLoader()
 
-result = {}
 all_match = {}
+result = {}
 row = len(data)
+
+# output_stream.write(json.dumps(data))
+# exit(0)
 imageProcessingLoader = Loader("Image Processing",row*(row-1))
 for i in range(row):
     for j in range(i+1,row):
         imageProcessingLoader.printLoader(i*row+j+1)
         lev = diff(data[i]["path"],data[j]["path"])
         match = calculateMatch(data[i]["hash"],data[j]["hash"])
+        # print(lev,match,data[i]["path"],data[j]["path"])
         if lev not in result:
             result[lev] = {}
         if match not in result[lev]:
@@ -130,7 +147,6 @@ for lev in result:
             result[lev][match] = 0
 
 
-
 for lev in result:
     # print(lev)
     data = []
@@ -139,8 +155,3 @@ for lev in result:
     result[lev] = sorted(data)
 
 output_stream.write(json.dumps(result))
-
-# for lev in sorted(result):
-#     print(lev)
-#     for match in sorted(result[lev]):
-#         print(f"\t{match} : {result[lev][match]}")
